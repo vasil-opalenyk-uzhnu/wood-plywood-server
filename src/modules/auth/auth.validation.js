@@ -12,9 +12,8 @@ const email = body('email')
     .isEmail().withMessage('emailIsInvalid');
 const password = body('password')
     .exists({ checkFalsy: true }).withMessage('passwordIsRequired')
-    .isString().withMessage('passwordMustBeAString').bail()
+    .isString().withMessage('passwordMustBeAString')
     .isLength({ min: 8, max: 72 }).withMessage('passwordMustBeBetween8And72')
-    .custom((value) => Buffer.byteLength(value, 'utf8') <= 72).withMessage('passwordTooLongInBytes')
     .isStrongPassword().withMessage('passwordIsWeak');
 
 export const registerRules = [
