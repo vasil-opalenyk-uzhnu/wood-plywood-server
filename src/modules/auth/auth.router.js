@@ -13,9 +13,9 @@ router.post('/email/login', limiter(20), validate([...deviceIdHeader, ...loginRu
 router.post('/email/register', limiter(10), validate([...deviceIdHeader, ...registerRules]), deviceMeta, authController.register);
 router.post('/email/verify-email', limiter(20), auth, validate([...verifyEmailRules]), authController.verifyEmail);
 
-router.post('/refresh', limiter(60), deviceMeta, authController.refresh);
-router.post('/logout', limiter(20), authController.logout);
+router.post('/refresh', limiter(100), deviceMeta, authController.refresh);
+router.post('/logout', authController.logout);
 
-router.get('/me', limiter(30), auth, requireActiveUser, authController.me);
+router.get('/me', auth, authController.me);
 
 export default router;

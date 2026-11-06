@@ -54,7 +54,7 @@ class FilesService {
 
         try {
             const file = await files.create({
-                path: uploaded.secure_url || uploaded.url,
+                path: uploaded.url,
                 publicId: uploaded.public_id,
                 type: uploaded.file_type,
                 ownerId,
@@ -106,9 +106,6 @@ class FilesService {
 
         if (!file) {
             throw new NotFoundError('fileNotExist');
-        }
-        if (file.status === FilesStatus.attached) {
-            throw new BadRequestError('fileIsAttached');
         }
 
         await this.destroy(file.publicId, file.type);

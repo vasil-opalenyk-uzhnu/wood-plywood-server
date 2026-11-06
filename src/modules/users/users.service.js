@@ -8,6 +8,7 @@ import { AuthProviders } from '../auth/auth.providers.js';
 import { filesService } from '../files/files.service.js';
 
 import { ConflictError, NotFoundError } from '../../common/errors/AppError.js';
+import { FilesStatus } from '../files/files.status.js';
 
 class UsersService {
     findById(id) {
@@ -103,8 +104,6 @@ class UsersService {
         if (updateUserDto.activationCode) {
             const salt = await bcrypt.genSalt();
             activationCode = await bcrypt.hash(updateUserDto.activationCode, salt);
-        } else if (updateUserDto.activationCode === null) {
-            activationCode = null;
         }
 
         let email = undefined;
@@ -120,23 +119,20 @@ class UsersService {
         }
 
         let profilePicture = undefined;
-        let previousProfilePicture = null;
-        let newlyConfirmedFileId = null;
 
-        if (updateUserDto.profilePicture) {
-            if (String(updateUserDto.profilePicture) === String(userObject.profilePicture ?? '')) {
-                profilePicture = userObject.profilePicture;
-            } else {
-                const file = await filesService.findOwned(updateUserDto.profilePicture, id);
-                await filesService.confirm([file._id], id);
-
-                profilePicture = file._id;
-                newlyConfirmedFileId = file._id;
-                previousProfilePicture = userObject.profilePicture;
+        if(updateUserDto.profilePicture) {
+            const file = await filesService.findById(updateUserDto.profilePicture);
+            
+            if(!file) {
+                throw new NotFoundError('imageNotExist');
             }
-        } else if (updateUserDto.profilePicture === null) {
+
+            await filesService.confirm([file._id], id);
+            await filesService.detach([userObject.profilePicture], id);
+
+            profilePicture = file.id;
+        }else if(updateUserDto.profilePicture === null) {
             profilePicture = null;
-            previousProfilePicture = userObject.profilePicture;
         }
 
         let role = undefined;
@@ -159,37 +155,18 @@ class UsersService {
             status = updateUserDto.status;
         }
 
-        const update = {
-            ...(email !== undefined && { email }),
-            ...(password !== undefined && { password }),
-            ...(role !== undefined && { role }),
-            ...(status !== undefined && { status }),
-            ...(profilePicture !== undefined && { profilePicture }),
-            ...(activationCode !== undefined && { activationCode }),
-            ...(updateUserDto.firstName !== undefined && { firstName: updateUserDto.firstName }),
-            ...(updateUserDto.lastName !== undefined && { lastName: updateUserDto.lastName }),
-            ...(updateUserDto.provider !== undefined && { provider: updateUserDto.provider }),
-            ...(updateUserDto.socialId !== undefined && { socialId: updateUserDto.socialId }),
-        };
-
-        let updatedUser;
-        try {
-            updatedUser = await users.findByIdAndUpdate(id, { $set: update }, {
-                new: true,
-                runValidators: true,
-            });
-        } catch (error) {
-            if (newlyConfirmedFileId) {
-                await filesService.detach([newlyConfirmedFileId], id).catch(() => {});
-            }
-            throw error;
-        }
-
-        if (previousProfilePicture && String(previousProfilePicture) !== String(profilePicture ?? '')) {
-            await filesService.detach([previousProfilePicture], id);
-        }
-
-        return updatedUser;
+        return users.findByIdAndUpdate(id, {
+            email,
+            password,
+            role,
+            status,
+            profilePicture,
+            activationCode,
+            firstName: updateUserDto.firstName,
+            lastName: updateUserDto.lastName,
+            provider: updateUserDto.provider,
+            socialId: updateUserDto.socialId,
+        })
     }
 }
 

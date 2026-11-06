@@ -23,11 +23,7 @@ class AuthService {
         if(user.provider !== AuthProviders.email) {
             throw new UnauthorizedError(`needLoginViaProvider:${user.provider}`);
         }
-
-        if (user.status !== UsersStatus.active) {
-            throw new UnauthorizedError('emailNotVerified');
-        }
-
+        
         if(!user.password) {
             throw new UnauthorizedError('invalidCredentials');
         }
@@ -129,12 +125,14 @@ class AuthService {
         }
 
         user.status = UsersStatus.active;
-        user.activationCode = undefined;
         await user.save();
     }
 
     async me(sub) {
-        return usersService.findById(sub);
+        const user = await usersService.findById(sub);
+        const file = await filesService.findById(user.profilePicture);
+        user.profilePicture = file;
+        return user;
     }
 
     async refresh(refreshToken, deviceMeta) {
