@@ -19,5 +19,6 @@ export const resetPasswordRules = [
     body('password')
         .isString().bail()
         .isLength({ min: 8, max: 72 }).withMessage('invalidPassword')
-        .custom((value) => Buffer.byteLength(value, 'utf8') <= 72).withMessage('passwordTooLongInBytes'),
-];
+        .custom((value) => Buffer.byteLength(value, 'utf8') <= 72).withMessage('passwordTooLongInBytes').bail()
+        .isStrongPassword().withMessage('passwordIsWeak')
+]

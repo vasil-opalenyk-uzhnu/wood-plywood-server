@@ -8,7 +8,6 @@ import { AuthProviders } from '../auth/auth.providers.js';
 import { filesService } from '../files/files.service.js';
 
 import { ConflictError, NotFoundError } from '../../common/errors/AppError.js';
-import { FilesStatus } from '../files/files.status.js';
 
 class UsersService {
     findById(id) {
@@ -97,6 +96,8 @@ class UsersService {
         if(updateUserDto.password && userObject?.password !== updateUserDto.password) {
             const salt = await bcrypt.genSalt();
             password = await bcrypt.hash(updateUserDto.password, salt);
+        }else if(updateUserDto.password === null) {
+            password = null;
         }
 
         let activationCode = undefined;
@@ -104,6 +105,8 @@ class UsersService {
         if (updateUserDto.activationCode) {
             const salt = await bcrypt.genSalt();
             activationCode = await bcrypt.hash(updateUserDto.activationCode, salt);
+        }else if(updateUserDto.activationCode === null) {
+            activationCode = null;
         }
 
         let email = undefined;
@@ -119,19 +122,25 @@ class UsersService {
         }
 
         let profilePicture = undefined;
+        let confirmedFileId = null;
+        let oldProfilePicture = null;
 
         if(updateUserDto.profilePicture) {
-            const file = await filesService.findById(updateUserDto.profilePicture);
+            const file = await filesService.findOwned(updateUserDto.profilePicture, id);
             
             if(!file) {
                 throw new NotFoundError('imageNotExist');
             }
 
-            await filesService.confirm([file._id], id);
-            await filesService.detach([userObject.profilePicture], id);
+            if(String(file._id) !== String(userObject.profilePicture)) {
+                await filesService.confirm([file._id], id);
 
-            profilePicture = file.id;
+                confirmedFileId = file._id;
+                oldProfilePicture = userObject.profilePicture;
+                profilePicture = file.id;
+            }
         }else if(updateUserDto.profilePicture === null) {
+            oldProfilePicture = userObject.profilePicture;
             profilePicture = null;
         }
 
@@ -155,18 +164,35 @@ class UsersService {
             status = updateUserDto.status;
         }
 
-        return users.findByIdAndUpdate(id, {
-            email,
-            password,
-            role,
-            status,
-            profilePicture,
-            activationCode,
-            firstName: updateUserDto.firstName,
-            lastName: updateUserDto.lastName,
-            provider: updateUserDto.provider,
-            socialId: updateUserDto.socialId,
-        })
+        let updated;
+
+        try {
+            updated = await users.findByIdAndUpdate(id, {
+                email,
+                password,
+                role,
+                status,
+                profilePicture,
+                activationCode,
+                firstName: updateUserDto.firstName,
+                lastName: updateUserDto.lastName,
+                provider: updateUserDto.provider,
+                socialId: updateUserDto.socialId,
+            }, { returnDocument: 'after' }).populate('profilePicture');
+        }catch(err) {
+            if(confirmedFileId) {
+                await filesService.release([confirmedFileId], id)
+                    .catch((releaseErr) => console.error('Files release failed:', confirmedFileId, releaseErr.message));
+            }
+            throw err;
+        }
+
+        if(oldProfilePicture) {
+            await filesService.detach([oldProfilePicture], id)
+                .catch((detachErr) => console.error('Files detach failed:', oldProfilePicture, detachErr.message));
+        }
+
+        return updated;
     }
 }
 

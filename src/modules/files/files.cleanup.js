@@ -5,7 +5,7 @@ import { filesService } from "./files.service.js";
 let running  = false;
 
 export const startFilesCleanup = () => {
-    cron.schedule('*/5 * * * *', async () => {
+    return cron.schedule('*/5 * * * *', async () => {
         if (running) return;
         running = true;
 

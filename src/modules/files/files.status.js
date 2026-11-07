@@ -1,5 +1,6 @@
 export const FilesStatus = {
     pending: 'pending',
     attached: 'attached',
-    orphaned: 'orphaned'
+    orphaned: 'orphaned',
+    deleting: 'deleting'
 }
