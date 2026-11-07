@@ -41,7 +41,7 @@ class AuthController {
         const deviceMeta = req.deviceMeta;
         const { accessToken, refreshToken } = await authService.refresh(oRefreshToken, deviceMeta);
 
-        setRefreshCookie(res, refreshToken);
+        if (refreshToken) setRefreshCookie(res, refreshToken);
 
         return res.json({ message: 'Refresh successful', accessToken });
     }

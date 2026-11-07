@@ -68,11 +68,16 @@ class AuthService {
             user = userByEmail;
 
             if (user.status === UsersStatus.inactive) {
+                await sessionsService.removeAll(user.id);
+
                 user = await usersService.update(user.id, {
                     provider: authProvider,
                     socialId: socialData.id,
                     status: UsersStatus.active,
                     activationCode: null,
+                    password: null,
+                    firstName: socialData.firstName ?? user.firstName,
+                    lastNmae: socialData.lastName ?? user.lastName,
                 });
             }
         }else if(socialData.id) {
@@ -87,8 +92,12 @@ class AuthService {
             });
 
             if (socialData.picture) {
-                const profilePicture = await filesService.add(socialData.picture, user.id);
-                user = await usersService.update(user.id, { profilePicture: profilePicture.id });
+                try {
+                    const profilePicture = await filesService.add(socialData.picture, user.id);
+                    user = await usersService.update(user.id, { profilePicture: profilePicture.id });
+                } catch (error) {
+                    console.error('Social avatar import failed:', error.message);
+                }
             }
         }
 
@@ -129,9 +138,10 @@ class AuthService {
     }
 
     async me(sub) {
-        const user = await usersService.findById(sub);
-        const file = await filesService.findById(user.profilePicture);
-        user.profilePicture = file;
+        const user = await usersService.findById(sub).populate('profilePicture');
+        if (!user) {
+            throw new NotFoundError('userNotFound');
+        }
         return user;
     }
 

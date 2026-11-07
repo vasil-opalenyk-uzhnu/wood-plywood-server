@@ -8,7 +8,7 @@ class FilesController {
 
         const file = await filesService.add(fileMulter, ownerId);
 
-        return res.status(201).json({ file: toFileResponse(file) });
+        return res.status(201).json({ message: 'File uploaded successfully', file: toFileResponse(file) });
     }
     async delete(req, res) {
         const { id } = req.params;

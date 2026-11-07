@@ -3,6 +3,8 @@ import { model, Schema } from 'mongoose'
 import { FilesType } from './files.type.js';
 import { FilesStatus } from './files.status.js';
 
+export const defaultExpiresAt = () => new Date(Date.now() + Number(process.env.FILES_EXPIRES_AT || 300000));
+
 const filesSchema = new Schema({
     path: {
         type: String,
@@ -30,7 +32,7 @@ const filesSchema = new Schema({
     },
     expiresAt: {
         type: Date,
-        default: () => new Date(Date.now() + Number(process.env.FILES_EXPIRES_AT || 300000)),
+        default: defaultExpiresAt,
     },
 });
 
