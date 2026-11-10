@@ -12,9 +12,9 @@ const layout = Handlebars.compile(read('layouts/base.hbs'));
 
 const cache = {};
 
-export function render(name, { title, footer, ...data }) {
+export function render(name, { title, footer, preheader, ...data }) {
     cache[name] ??= Handlebars.compile(read(`${name}.hbs`));
 
     const body = cache[name](data);
-    return layout({ title, footer, body });
+    return layout({ title, footer, preheader, body });
 }

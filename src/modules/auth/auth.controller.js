@@ -19,21 +19,34 @@ class AuthController {
 
     async register(req, res) {
         const data = body(req);
-        const deviceMeta = req.deviceMeta;
-        const { accessToken, refreshToken } = await authService.register(data, deviceMeta);
-
-        setRefreshCookie(res, refreshToken);
         
-        return res.json({ message: 'Register successful', accessToken });
+        await authService.register(data);
+
+        return res.json({ message: 'Register successful' });
     }
 
     async verifyEmail(req, res) {
-        const userId = req.user.id;
-        const { code } = body(req);
+        const { token } = body(req);
 
-        await authService.confirmEmail(code, userId);
+        await authService.confirmEmail(token);
 
         return res.json({ message: 'Activation successful' });
+    }
+
+    async forgotPassword(req, res) {
+        const { email } = body(req);
+
+        await authService.forgotPassword(email);
+
+        return res.json({ message: 'Forgot password started' });
+    }
+
+    async resetPassword(req, res) {
+        const { token, password } = body(req);
+
+        await authService.resetPassword(token, password);
+
+        return res.json({ message: 'Password changed successfully' });
     }
 
     async refresh(req, res) {
