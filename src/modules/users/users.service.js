@@ -34,13 +34,6 @@ class UsersService {
             password = await bcrypt.hash(createUserDto.password, salt);
         }
 
-        let activationCode = undefined;
-
-        if(createUserDto.activationCode) {
-            const salt = await bcrypt.genSalt();
-            activationCode = await bcrypt.hash(createUserDto.activationCode, salt);
-        }
-
         let email = undefined;
 
         if(createUserDto.email) {
@@ -76,7 +69,6 @@ class UsersService {
             password,
             role,
             status,
-            activationCode,
             firstName: createUserDto.firstName,
             lastName: createUserDto.lastName,
             provider: createUserDto.provider ?? AuthProviders.email,
@@ -98,15 +90,6 @@ class UsersService {
             password = await bcrypt.hash(updateUserDto.password, salt);
         }else if(updateUserDto.password === null) {
             password = null;
-        }
-
-        let activationCode = undefined;
-
-        if (updateUserDto.activationCode) {
-            const salt = await bcrypt.genSalt();
-            activationCode = await bcrypt.hash(updateUserDto.activationCode, salt);
-        }else if(updateUserDto.activationCode === null) {
-            activationCode = null;
         }
 
         let email = undefined;
@@ -173,7 +156,6 @@ class UsersService {
                 role,
                 status,
                 profilePicture,
-                activationCode,
                 firstName: updateUserDto.firstName,
                 lastName: updateUserDto.lastName,
                 provider: updateUserDto.provider,

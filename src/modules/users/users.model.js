@@ -48,11 +48,7 @@ const userSchema = new Schema({
         type: String,
         enum: Object.values(UsersStatus),
         default: UsersStatus.inactive
-    },
-    activationCode: {
-        type: String,
-        required: function () { return this.provider === AuthProviders.email && this.status === UsersStatus.inactive; },
-    },
+    }
 });
 
 export const users = model('users', userSchema);

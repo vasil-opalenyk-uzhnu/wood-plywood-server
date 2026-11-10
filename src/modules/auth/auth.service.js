@@ -7,10 +7,11 @@ import { UsersRoles } from "../users/users.roles.js";
 import { UsersStatus } from "../users/users.status.js";
 import { mailerService } from "../mailer/mailer.service.js";
 import { sessionsService } from "../sessions/sessions.service.js";
-
-import { generateActivationCode } from "../../common/utils/generateActivationCode.js";
-import { NotFoundError, UnauthorizedError } from "../../common/errors/AppError.js";
+import { accountTokensService } from "../account-tokens/account-tokens.service.js";
 import { filesService } from '../files/files.service.js';
+import { AccountTokensPurposes } from '../account-tokens/account-tokens.purposes.js';
+
+import { BadRequestError, NotFoundError, UnauthorizedError } from "../../common/errors/AppError.js";
 
 class AuthService {
     async validatelogin(loginDto, deviceMeta) {
@@ -35,6 +36,10 @@ class AuthService {
 
         if(!isValidPassword) {
             throw new UnauthorizedError('invalidCredentials');
+        }
+
+        if(user.status !== UsersStatus.active) {
+            throw new UnauthorizedError('emailNotVerified')
         }
 
         return sessionsService.add(user, deviceMeta);
@@ -69,12 +74,12 @@ class AuthService {
 
             if (user.status === UsersStatus.inactive) {
                 await sessionsService.removeAll(user.id);
+                await accountTokensService.revokeAll(user.id);
 
                 user = await usersService.update(user.id, {
                     provider: authProvider,
                     socialId: socialData.id,
                     status: UsersStatus.active,
-                    activationCode: null,
                     password: null,
                     firstName: socialData.firstName ?? user.firstName,
                     lastNmae: socialData.lastName ?? user.lastName,
@@ -108,33 +113,67 @@ class AuthService {
         return sessionsService.add(user, deviceMeta);
     }
 
-    async register(registerDto, deviceMeta) {
-        const activationCode = generateActivationCode();
-        const user = await usersService.create({
-            ...registerDto,
-            role: UsersRoles.user,
-            status: UsersStatus.inactive,
-            activationCode: activationCode
-        });
+    async register(registerDto) {
+        accountTokensService.assertConfigured(AccountTokensPurposes.verifyEmail);
 
-        mailerService.sendVerificationCode(registerDto.email, activationCode)
+        let user = await usersService.findByEmail(registerDto.email);
+
+        if(user && user.provider === AuthProviders.email && user.status === UsersStatus.inactive) {
+            user = await usersService.update(user.id, {
+                password: registerDto.password,
+                firstName: registerDto.firstName,
+                lastName: registerDto.lastName,
+            });
+        }else {
+            user = await usersService.create({
+                ...registerDto,
+                role: UsersRoles.user,
+                status: UsersStatus.inactive
+            });
+        }
+
+        const issued = await accountTokensService.create(user._id, AccountTokensPurposes.emailVerified);
+        if(!issued) return;
+        
+        mailerService.sendVerificationLink(registerDto.email, issued.link, issued.ttlMinutes)
             .catch((error) => console.error('Verification mail failed:', error.message));
-        return sessionsService.add(user, deviceMeta);
     }
 
-    async confirmEmail(code, userId) {
+    async confirmEmail(token) {
+        const userId = await accountTokensService.verify(token, AccountTokensPurposes.verifyEmail);
         const user = await usersService.findById(userId);
 
         if (!user || user.status !== UsersStatus.inactive) {
             throw new NotFoundError('notFound');
         }
-        const isCodeValid = await bcryp.compare(code, user.activationCode);
-        if (!isCodeValid) {
-            throw new UnauthorizedError('incorrectCode');
-        }
 
         user.status = UsersStatus.active;
         await user.save();
+    }
+
+    async forgotPassword(email) {
+        accountTokensService.assertConfigured(AccountTokensPurposes.resetPassword);
+
+        const user = await usersService.findByEmail(email);
+        if(!user || user.provider !== AuthProviders.email || user.status !== UsersStatus.active) return;
+
+        const issued = await accountTokensService.create(user._id, AccountTokensPurposes.resetPassword);
+        if(!issued) return;
+
+        mailerService.sendResetPasswordLink(user.email, issued.link, issued.ttlMinutes)
+            .catch((error) => console.error('Reset password mail failed:', error.message));
+    }
+
+    async resetPassword(token, password) {
+        const userId = await accountTokensService.verify(token, AccountTokensPurposes.resetPassword);
+
+        const user = await usersService.findById(userId);
+        if(!user || user.provider !== AuthProviders.email || user.status !== UsersStatus.active) {
+            throw new BadRequestError('invalidToken');
+        }
+
+        await usersService.update(user.id, { password });
+        await sessionsService.removeAll(user.id);
     }
 
     async me(sub) {

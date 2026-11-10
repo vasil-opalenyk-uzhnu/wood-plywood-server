@@ -29,6 +29,22 @@ export const loginRules = [
     body('password').isString().notEmpty().withMessage('passwordRequired'),
 ]
 
-export const verifyEmailRules = [
-    body('code').trim().matches(/^\d{6}$/).withMessage('invalidCode'),
-];
+const token = body('token')
+    .isString()
+    .withMessage('tokenRequired')
+    .bail()
+    .trim()
+    .notEmpty()
+    .withMessage('tokenRequired')
+    .bail()
+    .isLength({ min: 43, max: 43 })
+    .withMessage('invalidToken')
+    .bail()
+    .matches(/^[A-Za-z0-9_-]{43}$/)
+    .withMessage('invalidToken');
+
+export const verifyEmailRules = [token];
+
+export const forgotPasswordRules = [email];
+
+export const resetPasswordRules = [token, password];

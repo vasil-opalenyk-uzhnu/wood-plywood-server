@@ -2,6 +2,15 @@ import nodemailer from "nodemailer";
 
 import { render } from './mailer.render.js';
 
+// 10 -> "10 minutes", 60 -> "1 hour", 1440 -> "24 hours"
+const formatTtl = (minutes) => {
+    if (minutes >= 60 && minutes % 60 === 0) {
+        const hours = minutes / 60;
+        return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    }
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+};
+
 class MailerService {
     constructor() {
         this.transporter = nodemailer.createTransport({
@@ -20,34 +29,42 @@ class MailerService {
         console.log('Mailer ready');
     }
 
-    sendVerificationCode(to, code) {
-        return this.transporter.sendMail({
+    sendActionLink(to, { subject, title, preheader, footer, intro, buttonLabel, note, link, ttlMinutes }) {
+        const ttl = formatTtl(ttlMinutes);
+    
+         return this.transporter.sendMail({
             from: process.env.MAIL_FROM,
             to,
-            subject: 'Verify your email',
-            html: render('verify-email', {
-                title: 'Email verification',
-                preheader: `Your verification code: ${code}`,
-                footer: "If you didn't sign up, you can safely ignore this email.",
-                code,
-            }),
-            text: `Your verification code: ${code}`,
+            subject,
+            html: render('action-link', { title, preheader, footer, intro, buttonLabel, note, link, ttl }),
+            text: `${intro}\n${link}\n\nThe link is valid for ${ttl}.${note ? `\n${note}` : ''}`,
         });
     }
-
-    sendPasswordResetCode(to, code, ttlMinutes = 15) {
-        return this.transporter.sendMail({
-            from: process.env.MAIL_FROM,
-            to,
+    
+    sendVerificationLink(to, link, ttlMinutes) {
+        return this.sendActionLink(to, {
+            subject: 'Verify your email',
+            title: 'Email verification',
+            preheader: 'Confirm your email to finish registration',
+            footer: "If you didn't sign up, you can safely ignore this email.",
+            intro: 'Thank you for registering. Click the button below to confirm your email:',
+            buttonLabel: 'Confirm email',
+            link,
+            ttlMinutes,
+        });
+    }
+    
+    sendResetPasswordLink(to, link, ttlMinutes) {
+         return this.sendActionLink(to, {
             subject: 'Reset your password',
-            html: render('reset-password', {
-                title: 'Password reset',
-                preheader: `Your password reset code: ${code}`,
-                footer: 'You received this email because a password reset was requested for this address.',
-                code,
-                ttlMinutes,
-            }),
-            text: `Your password reset code: ${code}\nThe code is valid for ${ttlMinutes} minutes. Do not share it with anyone.\nIf you did not request a reset, ignore this email.`,
+            title: 'Password reset',
+            preheader: 'Use this link to choose a new password',
+            footer: 'You received this email because a password reset was requested for this address.',
+            intro: 'We received a request to reset your password. Click the button below to choose a new one:',
+            buttonLabel: 'Reset password',
+            note: "If you didn't request this, you can safely ignore this email: your password will not change.",
+            link,
+            ttlMinutes,
         });
     }
 }
