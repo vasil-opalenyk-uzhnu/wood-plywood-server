@@ -132,7 +132,7 @@ class AuthService {
             });
         }
 
-        const issued = await accountTokensService.create(user._id, AccountTokensPurposes.emailVerified);
+        const issued = await accountTokensService.create(user._id, AccountTokensPurposes.verifyEmail);
         if(!issued) return;
         
         mailerService.sendVerificationLink(registerDto.email, issued.link, issued.ttlMinutes)
