@@ -12,7 +12,7 @@ const router = Router();
 
 router.use(auth, requireActiveUser);
 
-router.get('/', limiter(20), sessionsController.list);
+router.get('/', sessionsController.list);
 router.delete('/', limiter(20), sessionsController.revokeOthers);
 router.delete('/:id', limiter(20), validate(idParam), sessionsController.revoke);
 
