@@ -3,7 +3,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-
 import { notFound } from './common/middlewares/notFound.js';
 import { errorHandler } from './common/middlewares/errorHandler.js';
 
