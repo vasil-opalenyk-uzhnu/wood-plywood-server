@@ -1,6 +1,7 @@
 import { sessionsService } from "../sessions/sessions.service.js";
 import { verifyAccessToken } from "../sessions/sessions.tokens.js";
 import { usersService } from "../users/users.service.js";
+import { UsersRoles } from "../users/users.roles.js";
 
 import { ForbiddenError, UnauthorizedError } from "../../common/errors/AppError.js";
 
@@ -42,3 +43,27 @@ export const requireActiveUser = (req, res, next) => {
     }
     next();
 };
+
+export const requireRole = (...roles) => {
+    const allowed = new Set(roles.flat());
+
+    if (!allowed.size) {
+        throw new Error('requireRole: at least one role is required');
+    }
+ 
+    for (const role of allowed) {
+        if (!Object.values(UsersRoles).includes(role)) {
+            throw new Error(`requireRole: unknown role "${role}"`);
+        }
+    }
+
+    return (req, res, next) => {
+        if (!req.user) throw new UnauthorizedError('tokenRequired');
+ 
+        if (!allowed.has(req.user.role)) {
+            throw new ForbiddenError('insufficientRole');
+        }
+ 
+        next();
+    };
+}
